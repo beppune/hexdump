@@ -63,7 +63,7 @@ Scan:   xor eax, eax            ; zero eax
 
         ; Get the LSN and put the matching Hex value into FormatStr
         and bl, 0Fh                     ; mask the LSN
-        mov bl, [HexStr + bl]          ; get the matching Hex value
+        mov bl, [HexStr + ebx]          ; get the matching Hex value
         ; now bl/ebx contains the character
 
         ; compute the LSN destination [(1 + offset) * 3. See comment at FormatStr
@@ -78,7 +78,7 @@ Scan:   xor eax, eax            ; zero eax
         ; Get the LSN and put the matching Hex value into FormatStr
         mov bl, [Buffer + ecx]          ; copy current pointer Buffer value
         shr bl, 04h                     ; shift to get the MSN
-        mov bl, [HexStr + bl]           ; get the matching Hex value
+        mov bl, [HexStr + ebx]           ; get the matching Hex value
 
         ; compute the MSN destination [(1 + offset) * 3 - 1]. See comment at FormatStr
         dec edi                         ; decrement edi
@@ -87,13 +87,15 @@ Scan:   xor eax, eax            ; zero eax
         jecxz Write             	; if ecx is 0 we scanned the last pointer and it's time to write
         jmp Scan                	;+  else next iteration of Scan
         
-Write:  mov byte [Buffer + edx], 0Ah    ; append '\n' to Buffer
+Write:  mov byte [FormatStr + edx], 0Ah    ; append '\n' to Buffer
         inc edx                         ; increment # bytes to include '\n'
         mov eax, 4                      ; sys_write
         mov ebx, 1                      ; write to stdout
         ;mov edx,edx                    ; write Buffer + '\n'
         int 80h                         ; kernel
         
+        mov byte [Buffer + edx], 020h   ; clear with space in FormatStr
+
         jmp Read                        ; next read
 
 Exit:
