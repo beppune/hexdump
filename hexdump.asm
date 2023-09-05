@@ -14,6 +14,18 @@ section .data
         HexStr: db "0123456789ABCDEF"
 		Len:	equ 16
 
+
+		; given a Buffer offset 'off' ( [Buffer + off] ):
+		;+ (1 + off) * 3      -> pointer to the bytes's Least Significant Nibble (LSN)
+		;+ (1 + off) * 3 - 1  -> pointer to the bytes's Most Significant Nibble (MSN)
+
+		;                         1  1  1  2  2  2  3  3  3  3  4  4  4
+		;                3  6  9  2  5  8  1  4  7  0  3  6  9  2  5  8
+        FormatStr: db " 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ", 0Ah
+		FormatLen: equ $-FormatStr
+		; the position of the '\n' for each Buffer read is (1 + last_index) * 3 + 1
+		;+ after every write such position must be 'cleared' alas set to ' ' (ASCII 020h)
+
 section .bss
 		Buffer:	resb	Len
 
@@ -34,7 +46,7 @@ Read:		mov eax, 3			; sys_read
 		cmp eax, 0			; compare sys_read return with 0
 		jb Exit				;+	if below 0 exit program 
 		
-Setup:  mov edi, Buffer     ; save Buffer base pointer
+Setup:  mov edi, FormatStr  ; save FormatStr base pointer
         mov esi, HexStr     ; save HexStr base pointer
         mov edx, eax        ; save # read bytes
         mov ecx, eax        ; save eax for pointer to Buffer
@@ -42,13 +54,36 @@ Setup:  mov edi, Buffer     ; save Buffer base pointer
 Scan:   xor eax, eax            ; zero eax
         xor ebx, ebx            ; zero ebx
         dec ecx                 ; decrement index Buffer
-                                ;+  first dec will make it pint to the last read byte (# bytes - 1 = last index)
-        
-        ; byte [Buffer + ecx] contains a single byte to match with HexStr
-        mov al,  [Buffer + ecx]		; mov in al the content of current Buffer pointer
-        mov bl,  [HexStr + eax]    	; mov in ebx matching HexStr byte pointed by current pointer
-        mov byte [Buffer + ecx], bl  	; mov the matching HexStr value to same poisition in Buffer
-        
+                                ;+  first dec will make it pint to the last read byte
+
+        ; ecx contains the current Buffer offset
+
+        ; save the current value ([Buffer + ecx])
+        mov bl, [Buffer + ecx]          ; copy [Buffer + ecx] in al
+
+        ; Get the LSN and put the matching Hex value into FormatStr
+        and bl, 0Fh                     ; mask the LSN
+        mov bl, [HexStr + bl]          ; get the matching Hex value
+        ; now bl/ebx contains the character
+
+        ; compute the LSN destination [(1 + offset) * 3. See comment at FormatStr
+        mov edi, ecx                    ; copy the offset in edi
+        inc edi                         ; increment offset by one (1 + offset)
+        mov eax, edi                    ; save the factor in eax
+        shl edi, 1                      ; shift 1 right to multiply by 2
+        add edi, eax                    ; add factor to multiply by 3
+
+        mov [FormatStr + edi], bl       ; copy the character to the computed position
+
+        ; Get the LSN and put the matching Hex value into FormatStr
+        mov bl, [Buffer + ecx]          ; copy current pointer Buffer value
+        shr bl, 04h                     ; shift to get the MSN
+        mov bl, [HexStr + bl]           ; get the matching Hex value
+
+        ; compute the MSN destination [(1 + offset) * 3 - 1]. See comment at FormatStr
+        dec edi                         ; decrement edi
+        mov [FormatStr + edi], bl       ; copy the character to the computed position
+
         jecxz Write             	; if ecx is 0 we scanned the last pointer and it's time to write
         jmp Scan                	;+  else next iteration of Scan
         
