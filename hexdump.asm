@@ -16,8 +16,8 @@ section .data
 
 
 		; given a Buffer offset 'off' ( [Buffer + off] ):
-		;+ (off + 3) * 3      -> pointer to the bytes's Least Significant Nibble (LSN)
-		;+ (off + 3) * 3 - 1  -> pointer to the bytes's Most Significant Nibble (MSN)
+		;+ (off * 3) + 3      -> pointer to the bytes's Least Significant Nibble (LSN)
+		;+ (off * 3) + 3 - 1  -> pointer to the bytes's Most Significant Nibble (MSN)
 
 		;                          1  1  1  2  2  2  3  3  3  3  4  4  4
 		;                 3  6  9  2  5  8  1  4  7  0  3  6  9  2  5  8
@@ -46,51 +46,22 @@ Read:	mov eax, 3			; sys_read
 		cmp eax, 0			; compare sys_read return with 0
 		jb Exit				;+	if below 0 exit program 
 
-
-Setup:  mov esi, eax            ; save # bytes read
+Setup:  mov esi, eax
         mov ecx, eax
 
-Scan:   dec ecx                 ;+ out of # bytes read            ;
-        xor eax, eax
-        xor ebx, ebx
-        xor edi, edi
+Write:  dec esi
+        mov esi, edx
+        shl esi, 1
+        add esi, edx
+        add esi, 4
 
-        ; FormatStr of LSN
-        mov edi, ecx
-        shl edi, 1
-        add edi, ecx
+        mov byte [FormatStr + esi], 0Ah
 
-        mov al, [Buffer, ecx]
-
-        mov bl, al
-        and bl, 0Fh
-
-        mov bl, [HexStr + ebx]
-        mov [FormatStr + edi], bl
-
-        ; MSB
-        dec edi
-        shr al, 4
-        mov bl, [HexStr + eax]
-        mov [FormatStr + edi], bl
-
-        jecxz Write
-
-
-Write:  inc edi
-        inc edi
-        mov byte [FormatStr + edi], 0Ah
-        inc edi
         mov eax, 4
         mov ebx, 1
         mov ecx, FormatStr
-        mov edx, edi
+        mov edx, esi
         int 80h
-
-        dec edi
-        mov byte [FormatStr + edi], 020h
-
-        ;jecxz Write
 
 Exit:
 	mov		eax, 01h		; exit()
