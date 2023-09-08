@@ -23,7 +23,6 @@ section .data
 		;                 3  6  9  2  5  8  1  4  7  0  3  6  9  2  5  8
         FormatStr: db "  00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
 		; the position of the '\n' for each Buffer read is (1 + last_index) * 3 + 1
-		;+ after every write such position must be 'cleared' alas set to ' ' (ASCII 020h)
 
 section .bss
 		Buffer:	resb	Len      ; reserve Len bytes for read
@@ -104,10 +103,10 @@ Scan:   dec ecx                 ; decrement ecx
         ;+ In order to know how many bytes to write
         ;+ take the saved # of bytes and compute again
         ;+ the (offset * 3) + 3 formula. This will print
-        ;+ only the byex characters, so the final value must be
+        ;+ only # bytes characters, so the final value must be
         ;+ incremented to include a newline character.
         ; However this could use some optimization since
-        ;+ every line will be always the same length except
+        ;+ every FormatStr line will be always the same length except
         ;+ for the last line which could be less than 16 bytes
         ;+ if the size of the input is 16 * n + m with m < 16
 Write:  dec esi                 ; decrement esi (off by one rule)
